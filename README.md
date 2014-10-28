@@ -31,4 +31,4 @@ The test.dat file contains only one coordinate copied over multiple lines so it 
 ### TODO
 
 * Automatically create the gif file with the images.
-* Automatically create the list of coordinates given the path
+* Automatically create the list of coordinates given the path (may be useful:  https://developers.google.com/maps/documentation/utilities/polylineutility)
