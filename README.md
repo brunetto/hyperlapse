@@ -10,7 +10,7 @@ My homemade tool inspired by [http://hyperlapse.tllabs.io/](http://hyperlapse.tl
 If you have a Go installation you can install `hyperlapse` with
 
 ````bash
-go get 
+go get github.com/brunetto/hyperlapse
 ````
 
 otherwise you can just download the binary (for linux)  [here](https://github.com/brunetto/hyperlapse/blob/master/hyperlapse)
