@@ -150,11 +150,11 @@ func ImgDownloader(urlTemplate *template.Template, dataChan chan Data, frameChan
 
 		// GIF creation
 		// Inspired by https://github.com/srinathh/goanigiffy/blob/master/goanigiffy.go
+		// Decode jpeg, encode in gif, decode gif to be able to stack frames
 		if img, err = jpeg.Decode(response.Body); err != nil {
 			log.Fatal("Can't decode jpg image: ", err)
 		}
 
-		// FIXME: need to better understand why we need this encode and decode
 		buf := bytes.Buffer{}
 		if err := gif.Encode(&buf, img, nil); err != nil {
 			log.Fatal("Can't gif-encode image: ", err)
