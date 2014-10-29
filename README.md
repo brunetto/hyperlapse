@@ -1,7 +1,7 @@
 hyperlapse
 ==========
 
-Small program to create hyperlapse with Google Street View.
+Small program to create hyperlapses with Google Street View.
 
 My homemade hyperlapse tool inspired by [http://hyperlapse.tllabs.io/](http://hyperlapse.tllabs.io/).    
 It will download (using 4 "threads") the StreetView images corresponding to the data in test.dat and create the gif hyperlapse.
