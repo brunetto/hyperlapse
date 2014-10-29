@@ -1,15 +1,17 @@
 package main
 
+// Inspired by https://github.com/srinathh/goanigiffy/blob/master/goanigiffy.go
 import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
+	"image"
+	"image/gif"
+	"image/jpeg"
 	"log"
 	"net/http"
 	"os"
 	"regexp"
-	"strconv"
 	"text/template"
 	"time"
 
@@ -29,7 +31,8 @@ func main() {
 		nLines      int = 0
 		line        string
 		nProcs      int    = 4
-		dataChan           = make(chan Data, 1)
+		dataChan           = make(chan Data, nProcs)
+		frameChan          = make(chan Frame, nProcs)
 		done               = make(chan struct{})
 		regString   string = `^(-*\d+\.*\d*\w*[-\+]{0,1}\d*),\s*` + // 1: Lat
 			`(-*\d+\.*\d*\w*[-\+]{0,1}\d*),\s*` + // 2: Long
@@ -64,13 +67,14 @@ like:
 		log.Fatal("error trying to parse url template")
 	}
 
-	log.Printf("Starting % goroutines to download images\n", nProcs)
+	log.Printf("Starting %v goroutines to download images\n", nProcs)
 	for idx := 0; idx < nProcs; idx++ {
-		go ImgDownloader(urlTemplate, dataChan, done)
+		go ImgDownloader(urlTemplate, dataChan, frameChan, done)
 	}
+	go ImgCollector(frameChan, done)
 
 	// Scan lines
-	for {
+	for nLines = 0; ; nLines++ {
 		if line, err = readfile.Readln(nReader); err != nil {
 			if err.Error() != "EOF" {
 				log.Fatal("Done reading with err", err)
@@ -80,8 +84,7 @@ like:
 			}
 			break
 		}
-		// Feedback on parsing
-		nLines += 1
+
 		// read data and send to goroutines
 		if regRes = regExp.FindStringSubmatch(line); regRes == nil {
 			log.Fatal("Can't regexp ", line)
@@ -99,31 +102,37 @@ like:
 
 	close(dataChan)
 	
-	log.Println("Cleaning goroutines")
+	log.Println("Cleaning downloader goroutines")
 	for idx := 0; idx < nProcs; idx++ {
 		<-done
 	}
-
+	
+	close(frameChan)
+	
+	log.Println("Cleaning collector goroutine")
+	<-done
 }
 
-func ImgDownloader(urlTemplate *template.Template, dataChan chan Data, done chan struct{}) {
+func ImgDownloader(urlTemplate *template.Template, dataChan chan Data, frameChan chan Frame, done chan struct{}) {
 	// Send end signal
 	defer func() {
 		done <- struct{}{}
 	}()
 
 	var (
-		outFileName string
-		outFile     *os.File
-		data        Data
-		err         error
-		url         bytes.Buffer
-		response    *http.Response
+		// 		outFileName string
+		// 		outFile     *os.File
+		data     Data
+		err      error
+		url      bytes.Buffer
+		response *http.Response
+		img      image.Image
+		tmpImg image.Image
 	)
 
 	// Write to file
 	for data = range dataChan {
-		outFileName = strconv.Itoa(data.Id) + ".jpg"
+		// 		outFileName = strconv.Itoa(data.Id) + ".jpg"
 		err = urlTemplate.Execute(&url, data)
 		if err != nil {
 			log.Fatal("error trying to execute mail template")
@@ -136,17 +145,76 @@ func ImgDownloader(urlTemplate *template.Template, dataChan chan Data, done chan
 		defer response.Body.Close()
 
 		// Create local file to copy to
-		if outFile, err = os.Create(outFileName); err != nil {
-			log.Fatalf("Error while creating %v: %v\n", outFileName, err)
+// 		if outFile, err = os.Create(outFileName); err != nil {
+// 			log.Fatalf("Error while creating %v: %v\n", outFileName, err)
+// 		}
+// 		defer outFile.Close()
+
+		if img, err = jpeg.Decode(response.Body); err != nil {
+			log.Fatal("Can't decode jpg image: ", err)
 		}
-		defer outFile.Close()
+
+		// Don't know why we need this encode and decode
+		buf := bytes.Buffer{}
+		if err := gif.Encode(&buf, img, nil); err != nil {
+			log.Fatal("Can't gif-encode image: ", err)
+		}
+
+		if tmpImg, err = gif.Decode(&buf); err != nil {
+			log.Fatal("Can't decode gif img: ", err)
+		}
+
+		frameChan <- Frame{Id: data.Id,
+			Img: tmpImg.(*image.Paletted),
+		}
 
 		// Copy data to file
-		if _, err = io.Copy(outFile, response.Body); err != nil {
-			log.Fatalf("Error while filling %v: %v\n ", outFileName, err)
-		}
+		// 		if _, err = io.Copy(outFile, response.Body); err != nil {
+		// 			log.Fatalf("Error while filling %v: %v\n ", outFileName, err)
+		// 		}
+	}
+}
+
+func ImgCollector(frameChan chan Frame, done chan struct{}) {
+	// Send end signal
+	defer func() {
+		done <- struct{}{}
+	}()
+	var (
+		outFileName string = "final-hyperlapse.gif"
+		outFile     *os.File
+		frames      = map[int]*image.Paletted{}
+		framesList  = []*image.Paletted{}
+		frame       Frame
+		delays      []int
+		delay       int = 3
+		err error
+	)
+
+	for frame = range frameChan {
+		frames[frame.Id] = frame.Img
 	}
 
+	// Create sorted frame list
+	for idx := 0; idx < len(frames); idx++ {
+		framesList = append(framesList, frames[idx])
+	}
+
+	delays = make([]int, len(frames))
+	for idx, _ := range delays {
+		delays[idx] = delay
+	}
+
+	log.Println("Create outfile ", outFileName)
+	if outFile, err = os.Create(outFileName); err != nil {
+		log.Fatalf("Error creating the destination file %s: %s\n", outFile, err)
+	}
+	defer outFile.Close()
+
+	log.Println("Encode all frames in the final gif image")
+	if err = gif.EncodeAll(outFile, &gif.GIF{framesList, delays, 0}); err != nil {
+		log.Fatalf("Error encoding output into animated gif :%s\n", err)
+	}
 }
 
 var UrlTemplate string = "https://maps.googleapis.com/maps/api/streetview?" +
@@ -164,4 +232,9 @@ type Data struct {
 	FOV   string
 	Head  string
 	Pitch string
+}
+
+type Frame struct {
+	Id  int
+	Img *image.Paletted
 }
