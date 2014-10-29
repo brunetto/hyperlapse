@@ -1,6 +1,5 @@
 package main
 
-// Inspired by https://github.com/srinathh/goanigiffy/blob/master/goanigiffy.go
 import (
 	"bufio"
 	"bytes"
@@ -149,6 +148,8 @@ func ImgDownloader(urlTemplate *template.Template, dataChan chan Data, frameChan
 		// 		}
 		// 		defer outFile.Close()
 
+		// GIF creation
+		// Inspired by https://github.com/srinathh/goanigiffy/blob/master/goanigiffy.go
 		if img, err = jpeg.Decode(response.Body); err != nil {
 			log.Fatal("Can't decode jpg image: ", err)
 		}
