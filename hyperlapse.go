@@ -62,12 +62,13 @@ like:
 	defer inFile.Close()
 	nReader = bufio.NewReader(inFile)
 
+	// Create the url template to download the images
 	urlTemplate = template.New("urlTemplate")
 	if urlTemplate, err = urlTemplate.Parse(UrlTemplate); err != nil {
-		log.Fatal("error trying to parse url template")
+		log.Fatal("Error trying to parse url template")
 	}
 
-	log.Printf("Starting %v goroutines to download images\n", nProcs)
+	log.Printf("Start %v goroutines to download images and the collector\n", nProcs)
 	for idx := 0; idx < nProcs; idx++ {
 		go ImgDownloader(urlTemplate, dataChan, frameChan, done)
 	}
@@ -85,7 +86,7 @@ like:
 			break
 		}
 
-		// read data and send to goroutines
+		// Read data and send to goroutines
 		if regRes = regExp.FindStringSubmatch(line); regRes == nil {
 			log.Fatal("Can't regexp ", line)
 		}
@@ -100,16 +101,14 @@ like:
 		}
 	}
 
+	log.Println("Close downloaders channel and clean downloaders goroutines")
 	close(dataChan)
-	
-	log.Println("Cleaning downloader goroutines")
 	for idx := 0; idx < nProcs; idx++ {
 		<-done
 	}
-	
+
+	log.Println("Close collector channel and clean collector goroutine")
 	close(frameChan)
-	
-	log.Println("Cleaning collector goroutine")
 	<-done
 }
 
@@ -127,15 +126,15 @@ func ImgDownloader(urlTemplate *template.Template, dataChan chan Data, frameChan
 		url      bytes.Buffer
 		response *http.Response
 		img      image.Image
-		tmpImg image.Image
+		tmpImg   image.Image
 	)
 
-	// Write to file
+	// Download images and send data to the collector
 	for data = range dataChan {
 		// 		outFileName = strconv.Itoa(data.Id) + ".jpg"
 		err = urlTemplate.Execute(&url, data)
 		if err != nil {
-			log.Fatal("error trying to execute mail template")
+			log.Fatal("Error trying to execute mail template")
 		}
 
 		// Download data
@@ -145,16 +144,16 @@ func ImgDownloader(urlTemplate *template.Template, dataChan chan Data, frameChan
 		defer response.Body.Close()
 
 		// Create local file to copy to
-// 		if outFile, err = os.Create(outFileName); err != nil {
-// 			log.Fatalf("Error while creating %v: %v\n", outFileName, err)
-// 		}
-// 		defer outFile.Close()
+		// 		if outFile, err = os.Create(outFileName); err != nil {
+		// 			log.Fatalf("Error while creating %v: %v\n", outFileName, err)
+		// 		}
+		// 		defer outFile.Close()
 
 		if img, err = jpeg.Decode(response.Body); err != nil {
 			log.Fatal("Can't decode jpg image: ", err)
 		}
 
-		// Don't know why we need this encode and decode
+		// FIXME: need to better understand why we need this encode and decode
 		buf := bytes.Buffer{}
 		if err := gif.Encode(&buf, img, nil); err != nil {
 			log.Fatal("Can't gif-encode image: ", err)
@@ -188,9 +187,10 @@ func ImgCollector(frameChan chan Frame, done chan struct{}) {
 		frame       Frame
 		delays      []int
 		delay       int = 3
-		err error
+		err         error
 	)
 
+	// Collect frames
 	for frame = range frameChan {
 		frames[frame.Id] = frame.Img
 	}
@@ -200,6 +200,7 @@ func ImgCollector(frameChan chan Frame, done chan struct{}) {
 		framesList = append(framesList, frames[idx])
 	}
 
+	// Create delays list
 	delays = make([]int, len(frames))
 	for idx, _ := range delays {
 		delays[idx] = delay
@@ -224,6 +225,7 @@ var UrlTemplate string = "https://maps.googleapis.com/maps/api/streetview?" +
 	"heading={{.Head}}&" +
 	"pitch={{.Pitch}}"
 
+// Images data (for the downloaders)
 type Data struct {
 	Id    int
 	Lat   string
