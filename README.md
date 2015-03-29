@@ -18,6 +18,20 @@ otherwise you can just download the binary (for linux)  [here](https://github.co
 
 ### Use
 
+Prepare a table with a list of "step" in the format
+
+```
+latitute, longitude, size, field of view, (direction of) head(ing), pitch
+```
+
+for example
+
+```
+40.720032,-73.988354, 400, 90, 90, 0
+```
+
+This results in [this]("https://maps.googleapis.com/maps/api/streetview?size=400x400&location=40.720032,-73.988354&fov=90&heading=90&pitch=0) frame.
+
 Run it with 
 
 `````bash
@@ -30,7 +44,7 @@ The test.dat file contains only one coordinate copied over multiple lines so it 
 
 ### TODO
 
-* [DONE]Automatically create the gif file with the images.
+* ~~Automatically create the gif file with the images.]~~ `done`
 * Automatically create the list of coordinates given the path
 
 May be useful:  
