@@ -30,7 +30,7 @@ for example
 40.720032,-73.988354, 400, 90, 90, 0
 ```
 
-This results in [this]("https://maps.googleapis.com/maps/api/streetview?size=400x400&location=40.720032,-73.988354&fov=90&heading=90&pitch=0) frame.
+This results in [this](https://maps.googleapis.com/maps/api/streetview?size=400x400&location=40.720032,-73.988354&fov=90&heading=90&pitch=0) frame.
 
 Run it with 
 
