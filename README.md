@@ -44,7 +44,7 @@ The test.dat file contains only one coordinate copied over multiple lines so it 
 
 ### TODO
 
-* ~~Automatically create the gif file with the images.]~~ `done`
+* ~~Automatically create the gif file with the images.~~ `done`
 * Automatically create the list of coordinates given the path
 
 May be useful:  
